@@ -100,15 +100,41 @@ export async function handleEmailsApi(request, db, url, path, options) {
         timeFilter = ' AND received_at >= ?';
         timeParam = [twentyFourHoursAgo];
       }
-      
+
       const placeholders = ids.map(() => '?').join(',');
       try {
         const { results } = await db.prepare(`
           SELECT id, sender, to_addrs, subject, verification_code, preview, eml_content, received_at, is_read
           FROM messages WHERE id IN (${placeholders})${timeFilter}
         `).bind(...ids, ...timeParam).all();
-        return Response.json(results || []);
+
+        // 为每封邮件解析内容
+        const emailsWithContent = (results || []).map(row => {
+          let content = '';
+          let html_content = '';
+          try {
+            if (row.eml_content) {
+              const parsed = parseEmailBody(row.eml_content || '');
+              content = parsed.text || '';
+              html_content = parsed.html || '';
+            }
+          } catch (e) {
+            console.error('解析邮件内容失败:', e);
+          }
+          // 如果解析失败，使用 eml_content 作为文本内容
+          if (!content && !html_content && row.eml_content) {
+            content = row.eml_content;
+          }
+          // Fallback: 使用 preview 字段作为最后的内容来源（针对从 R2 迁移的旧邮件）
+          if (!content && !html_content && row.preview) {
+            content = row.preview;
+          }
+          return { ...row, content, html_content };
+        });
+
+        return Response.json(emailsWithContent);
       } catch (e) {
+        // Fallback: 尝试从旧的 content/html_content 字段获取
         const { results } = await db.prepare(`
           SELECT id, sender, subject, content, html_content, received_at, is_read
           FROM messages WHERE id IN (${placeholders})${timeFilter}
@@ -200,8 +226,16 @@ export async function handleEmailsApi(request, db, url, path, options) {
           content = parsed.text || '';
           html_content = parsed.html || '';
         }
-      } catch (_) { }
+      } catch (e) {
+        console.error('解析邮件内容失败:', e);
+      }
 
+      // 如果解析失败，尝试使用 eml_content 作为文本内容
+      if (!content && !html_content && row.eml_content) {
+        content = row.eml_content;
+      }
+
+      // Fallback 1: 尝试从旧的 content/html_content 字段获取（兼容性）
       if ((!content && !html_content)) {
         try {
           const fallback = await db.prepare('SELECT content, html_content FROM messages WHERE id = ?').bind(emailId).all();
@@ -209,6 +243,11 @@ export async function handleEmailsApi(request, db, url, path, options) {
           content = content || fr.content || '';
           html_content = html_content || fr.html_content || '';
         } catch (_) { }
+      }
+
+      // Fallback 2: 使用 preview 字段作为最后的内容来源（针对从 R2 迁移的旧邮件）
+      if (!content && !html_content && row.preview) {
+        content = row.preview;
       }
 
       return Response.json({ ...row, content, html_content, download: row.eml_content ? `/api/email/${emailId}/download` : '' });

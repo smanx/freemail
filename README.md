@@ -184,6 +184,9 @@ wrangler tail
 
 # 检查数据库
 wrangler d1 execute TEMP_MAIL_DB --command "SELECT * FROM mailboxes LIMIT 10"
+
+# 部署
+npx wrangler deploy
 ```
 </details>
 

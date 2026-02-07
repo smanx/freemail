@@ -47,6 +47,7 @@ async function performFirstTimeSetup(db) {
     await db.prepare('SELECT 1 FROM sent_emails LIMIT 1').all();
     // 所有5个必要表都存在，执行字段迁移
     await migrateMailboxesFields(db);
+    await migrateMessagesFields(db);
     return;
   } catch (e) {
     // 有表不存在，继续初始化
@@ -111,6 +112,33 @@ async function migrateMailboxesFields(db) {
     }
   } catch (error) {
     console.error('mailboxes 字段迁移失败:', error);
+    // 不抛出异常，允许继续运行
+  }
+}
+
+/**
+ * 迁移 messages 表字段（向后兼容）
+ * 检查并添加缺失的字段：eml_content
+ * @param {object} db - 数据库连接对象
+ * @returns {Promise<void>}
+ */
+async function migrateMessagesFields(db) {
+  try {
+    const columns = await db.prepare("PRAGMA table_info(messages)").all();
+    const columnNames = (columns.results || []).map(c => c.name);
+    
+    // 添加 eml_content 字段（EML 原始内容）
+    if (!columnNames.includes('eml_content')) {
+      await db.exec("ALTER TABLE messages ADD COLUMN eml_content TEXT;");
+      console.log('已添加 messages.eml_content 字段');
+    }
+    
+    // 检查是否有旧的 R2 字段，用于识别需要迁移的邮件
+    if (columnNames.includes('r2_bucket') || columnNames.includes('r2_object_key')) {
+      console.log('检测到旧的 R2 字段，这些邮件的 eml_content 将为 NULL（需要使用 preview 作为内容）');
+    }
+  } catch (error) {
+    console.error('messages 字段迁移失败:', error);
     // 不抛出异常，允许继续运行
   }
 }

@@ -104,14 +104,15 @@ export default {
         forwardByLocalPart(message, localPart, ctx, env);
       }
 
-      // 读取原始邮件内容
+      // 读取原始邮件内容（只读取一次）
       let textContent = '';
       let htmlContent = '';
-      let rawBuffer = null;
+      let emlContent = '';
       try {
         const resp = new Response(message.raw);
-        rawBuffer = await resp.arrayBuffer();
+        const rawBuffer = await resp.arrayBuffer();
         const rawText = await new Response(rawBuffer).text();
+        emlContent = rawText || '';
         const parsed = parseEmailBody(rawText);
         textContent = parsed.text || '';
         htmlContent = parsed.html || '';
@@ -119,21 +120,11 @@ export default {
       } catch (_) {
         textContent = '';
         htmlContent = '';
+        emlContent = '';
       }
 
       const mailbox = extractEmail(resolvedRecipient || toHeader);
       const sender = extractEmail(fromHeader);
-
-      // 获取原始 EML 内容（转字符串存储到数据库）
-      let emlContent = '';
-      try {
-        const resp = new Response(message.raw);
-        rawBuffer = await resp.arrayBuffer();
-        const rawText = await new Response(rawBuffer).text();
-        emlContent = rawText || '';
-      } catch (_) {
-        emlContent = '';
-      }
 
       // 生成预览和验证码
       const preview = (() => {
