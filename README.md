@@ -206,10 +206,10 @@ wrangler d1 execute TEMP_MAIL_DB --command "SELECT * FROM mailboxes LIMIT 10"
 
 如果你觉得本项目对你有帮助，欢迎赞赏支持：
 
-<p align="left">
+<!-- <p align="left">
   <img src="pic/alipay.jpg" alt="支付宝赞赏码" height="400" />
   <img src="pic/weichat.jpg" alt="微信赞赏码" height="400" />
-</p>
+</p> -->
 
 ## 许可证
 
