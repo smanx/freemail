@@ -12,7 +12,7 @@ database_id = "c3a654ea-1a0f-4712-b40c-834c7d7eb4ae" # 你的database_id
 # 环境变量
 [vars]
 # 邮箱域名，多个用逗号分隔
-MAIL_DOMAIN = "temp.example.com"
+MAIL_DOMAIN = "xxx.xxx.com"
 # 严格管理员密码（请修改为强密码）
 ADMIN_PASSWORD = "your_admin_password_here"
 # 严格管理员用户名（默认 admin）

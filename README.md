@@ -1,8 +1,10 @@
 # Freemail - 临时邮箱服务
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/idinging/freemail)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/smanx/freemail)
 
-一个基于 Cloudflare Workers + D1 + R2 构建的**开源临时邮箱服务**，支持邮件接收、发送、转发、用户管理等完整功能。
+一个基于 Cloudflare Workers + D1 构建的**开源临时邮箱服务**，支持邮件接收、发送、转发、用户管理等完整功能。
+
+> **本项目在原 Freemail 项目基础上进行了优化**：将原项目的 R2 存储功能迁移到 D1 数据库，邮件内容直接存储在 D1 中，无需额外配置 R2 存储桶，只需配置 D1 数据库即可完成部署。
 
 **当前版本：V4.8** - 新增单个邮件转发和收藏功能
 
@@ -48,7 +50,7 @@
 | ✉️ **发件支持** | Resend API 集成 · 多域名密钥 · 批量发送 · 定时发送 · 发件记录 |
 | 👥 **用户管理** | 三层权限模型 · 用户/邮箱分配 · 邮箱单点登录 · 登录权限控制 |
 | 🎨 **现代界面** | 毛玻璃效果 · 响应式设计 · 移动端适配 · 列表/卡片视图 |
-| ⚡ **技术架构** | Cloudflare Workers · D1 数据库 · R2 存储 · Email Routing |
+| ⚡ **技术架构** | Cloudflare Workers · D1 数据库 · Email Routing |
 
 > 💡 邮箱用户自行修改密码功能默认关闭，如需开启请将 `mailbox.html` 第 77-80 行取消注释。
 
@@ -81,7 +83,7 @@
 <details>
 <summary><strong>V3.x</strong> - 用户管理与性能优化</summary>
 
-- V3.5：数据库查询优化、R2 存储完整 EML、移动端适配
+- V3.5：数据库查询优化、邮件 EML 存储、移动端适配
 - V3.0：三层权限模型、用户管理后台、前端权限防护
 </details>
 
@@ -107,13 +109,15 @@
 | 变量名 | 说明 | 必需 |
 |--------|------|------|
 | TEMP_MAIL_DB | D1 数据库绑定 | 是 |
-| MAIL_EML | R2 存储桶绑定 | 是 |
 | MAIL_DOMAIN | 邮箱域名，多个用逗号分隔 | 是 |
 | ADMIN_PASSWORD | 严格管理员密码 | 是 |
 | ADMIN_NAME | 严格管理员用户名（默认 `admin`） | 否 |
 | JWT_TOKEN | JWT 签名密钥 | 是 |
+| SESSION_EXPIRE_DAYS | 会话过期时间（单位：天，默认7天） | 否 |
 | RESEND_API_KEY | Resend 发件密钥，支持多域名配置 | 否 |
 | FORWARD_RULES | 邮件转发规则 | 否 |
+
+> **注意**：本项目已将 R2 存储迁移到 D1 数据库，无需配置 R2 存储桶，邮件内容直接存储在 D1 的 `messages` 表中。
 
 <details>
 <summary><strong>RESEND_API_KEY 配置格式</strong></summary>
@@ -186,12 +190,13 @@ wrangler d1 execute TEMP_MAIL_DB --command "SELECT * FROM mailboxes LIMIT 10"
 ## 注意事项
 
 - **静态资源缓存**：更新后在 Cloudflare 控制台 Purge Everything，浏览器强制刷新
-- **R2/D1 费用**：有免费额度限制，建议定期清理过期邮件
+- **D1 费用**：有免费额度限制，建议定期清理过期邮件
 - **安全**：生产环境务必修改默认的 `ADMIN_PASSWORD` 和 `JWT_TOKEN`
+- **数据迁移**：如果是升级部署，需执行 `ALTER TABLE messages ADD COLUMN eml_content TEXT` 添加 EML 内容字段
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=idinging/freemail&type=Date)](https://www.star-history.com/#idinging/freemail&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=smanx/freemail&type=Date)](https://www.star-history.com/#smanx/freemail&Date)
 
 ## 联系方式
 

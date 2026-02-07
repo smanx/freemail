@@ -1,12 +1,12 @@
 
 ## 一键部署指南
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/idinging/freemail)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/smanx/freemail)
 
 #### 1. 首先点击  Deploy to Cloudflare
 
 #### 2 登陆账号后会进入，推荐选择亚洲地区（当然不选择亚洲也没关系）
-`不要修改数据库名称和R2名称 可能导致无法查询`
+`不要修改数据库名称 可能导致无法查询`
 ![5a0cc80913848aca4b5f4058538ad6aa|690x333](../pic/v4/depl1.png)
 #### 3. 点击创建部署，然后耐心等待克隆部署
 ![5a0cc80913848aca4b5f4058538ad6aa|690x333](../pic/v4/depl2.png)
