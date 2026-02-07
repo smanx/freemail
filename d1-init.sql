@@ -29,8 +29,7 @@ CREATE TABLE IF NOT EXISTS messages (
   subject TEXT NOT NULL,
   verification_code TEXT,
   preview TEXT,
-  r2_bucket TEXT NOT NULL DEFAULT 'mail-eml',
-  r2_object_key TEXT NOT NULL DEFAULT '',
+  eml_content TEXT,
   received_at TEXT DEFAULT CURRENT_TIMESTAMP,
   is_read INTEGER DEFAULT 0,
   FOREIGN KEY(mailbox_id) REFERENCES mailboxes(id)
@@ -86,7 +85,6 @@ CREATE INDEX IF NOT EXISTS idx_mailboxes_is_favorite ON mailboxes(is_favorite DE
 -- messages 索引
 CREATE INDEX IF NOT EXISTS idx_messages_mailbox_id ON messages(mailbox_id);
 CREATE INDEX IF NOT EXISTS idx_messages_received_at ON messages(received_at DESC);
-CREATE INDEX IF NOT EXISTS idx_messages_r2_object_key ON messages(r2_object_key);
 CREATE INDEX IF NOT EXISTS idx_messages_mailbox_received ON messages(mailbox_id, received_at DESC);
 CREATE INDEX IF NOT EXISTS idx_messages_mailbox_received_read ON messages(mailbox_id, received_at DESC, is_read);
 

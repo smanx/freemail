@@ -124,25 +124,15 @@ export default {
       const mailbox = extractEmail(resolvedRecipient || toHeader);
       const sender = extractEmail(fromHeader);
 
-      // 存储到 R2
-      const r2 = env.MAIL_EML;
-      let objectKey = '';
+      // 获取原始 EML 内容（转字符串存储到数据库）
+      let emlContent = '';
       try {
-        const now = new Date();
-        const y = now.getUTCFullYear();
-        const m = String(now.getUTCMonth() + 1).padStart(2, '0');
-        const d = String(now.getUTCDate()).padStart(2, '0');
-        const hh = String(now.getUTCHours()).padStart(2, '0');
-        const mm = String(now.getUTCMinutes()).padStart(2, '0');
-        const ss = String(now.getUTCSeconds()).padStart(2, '0');
-        const keyId = (globalThis.crypto?.randomUUID && crypto.randomUUID()) || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        const safeMailbox = (mailbox || 'unknown').toLowerCase().replace(/[^a-z0-9@._-]/g, '_');
-        objectKey = `${y}/${m}/${d}/${safeMailbox}/${hh}${mm}${ss}-${keyId}.eml`;
-        if (r2 && rawBuffer) {
-          await r2.put(objectKey, new Uint8Array(rawBuffer), { httpMetadata: { contentType: 'message/rfc822' } });
-        }
-      } catch (e) {
-        console.error('R2 put failed:', e);
+        const resp = new Response(message.raw);
+        rawBuffer = await resp.arrayBuffer();
+        const rawText = await new Response(rawBuffer).text();
+        emlContent = rawText || '';
+      } catch (_) {
+        emlContent = '';
       }
 
       // 生成预览和验证码
@@ -188,8 +178,8 @@ export default {
 
       // 插入消息记录
       await DB.prepare(`
-        INSERT INTO messages (mailbox_id, sender, to_addrs, subject, verification_code, preview, r2_bucket, r2_object_key)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO messages (mailbox_id, sender, to_addrs, subject, verification_code, preview, eml_content)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `).bind(
         mailboxId,
         sender,
@@ -197,8 +187,7 @@ export default {
         subject || '(无主题)',
         verificationCode || null,
         preview || null,
-        'mail-eml',
-        objectKey || ''
+        emlContent || null
       ).run();
     } catch (err) {
       console.error('Email event handling error:', err);

@@ -104,7 +104,7 @@ export async function handleEmailsApi(request, db, url, path, options) {
       const placeholders = ids.map(() => '?').join(',');
       try {
         const { results } = await db.prepare(`
-          SELECT id, sender, to_addrs, subject, verification_code, preview, r2_bucket, r2_object_key, received_at, is_read
+          SELECT id, sender, to_addrs, subject, verification_code, preview, eml_content, received_at, is_read
           FROM messages WHERE id IN (${placeholders})${timeFilter}
         `).bind(...ids, ...timeParam).all();
         return Response.json(results || []);
@@ -147,20 +147,18 @@ export async function handleEmailsApi(request, db, url, path, options) {
     }
   }
 
-  // 下载 EML（从 R2 获取）- 必须在通用邮件详情处理器之前
+  // 下载 EML（从数据库获取）- 必须在通用邮件详情处理器之前
   if (request.method === 'GET' && path.startsWith('/api/email/') && path.endsWith('/download')) {
     if (options.mockOnly) return errorResponse('演示模式不可下载', 403);
     const id = path.split('/')[3];
-    const { results } = await db.prepare('SELECT r2_bucket, r2_object_key FROM messages WHERE id = ?').bind(id).all();
+    const { results } = await db.prepare('SELECT subject, eml_content, received_at FROM messages WHERE id = ?').bind(id).all();
     const row = (results || [])[0];
-    if (!row || !row.r2_object_key) return errorResponse('未找到对象', 404);
+    if (!row || !row.eml_content) return errorResponse('未找到邮件内容', 404);
     try {
-      if (!r2) return errorResponse('R2 未绑定', 500);
-      const obj = await r2.get(row.r2_object_key);
-      if (!obj) return errorResponse('对象不存在', 404);
       const headers = new Headers({ 'Content-Type': 'message/rfc822' });
-      headers.set('Content-Disposition', `attachment; filename="${String(row.r2_object_key).split('/').pop()}"`);
-      return new Response(obj.body, { headers });
+      const filename = `${row.subject || 'email'}.eml`.replace(/[^a-zA-Z0-9\u4e00-\u9fa5._-]/g, '_');
+      headers.set('Content-Disposition', `attachment; filename="${filename}"`);
+      return new Response(row.eml_content, { headers });
     } catch (e) {
       return errorResponse('下载失败', 500);
     }
@@ -182,7 +180,7 @@ export async function handleEmailsApi(request, db, url, path, options) {
       }
       
       const { results } = await db.prepare(`
-        SELECT id, sender, to_addrs, subject, verification_code, preview, r2_bucket, r2_object_key, received_at, is_read
+        SELECT id, sender, to_addrs, subject, verification_code, preview, eml_content, received_at, is_read
         FROM messages WHERE id = ?${timeFilter}
       `).bind(emailId, ...timeParam).all();
       if (results.length === 0) {
@@ -195,19 +193,12 @@ export async function handleEmailsApi(request, db, url, path, options) {
       const row = results[0];
       let content = '';
       let html_content = '';
-      
+
       try {
-        if (row.r2_object_key && r2) {
-          const obj = await r2.get(row.r2_object_key);
-          if (obj) {
-            let raw = '';
-            if (typeof obj.text === 'function') raw = await obj.text();
-            else if (typeof obj.arrayBuffer === 'function') raw = await new Response(await obj.arrayBuffer()).text();
-            else raw = await new Response(obj.body).text();
-            const parsed = parseEmailBody(raw || '');
-            content = parsed.text || '';
-            html_content = parsed.html || '';
-          }
+        if (row.eml_content) {
+          const parsed = parseEmailBody(row.eml_content || '');
+          content = parsed.text || '';
+          html_content = parsed.html || '';
         }
       } catch (_) { }
 
@@ -220,7 +211,7 @@ export async function handleEmailsApi(request, db, url, path, options) {
         } catch (_) { }
       }
 
-      return Response.json({ ...row, content, html_content, download: row.r2_object_key ? `/api/email/${emailId}/download` : '' });
+      return Response.json({ ...row, content, html_content, download: row.eml_content ? `/api/email/${emailId}/download` : '' });
     } catch (e) {
       const { results } = await db.prepare(`
         SELECT id, sender, subject, content, html_content, received_at, is_read

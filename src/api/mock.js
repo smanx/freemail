@@ -122,8 +122,6 @@ export function buildMockEmailDetail(emailId) {
     content: '这是演示邮件的纯文本内容。\n\n您的验证码是：123456\n\n请在5分钟内使用。',
     html_content: '<div style="padding:20px;"><h2>演示邮件</h2><p>您的验证码是：<strong>123456</strong></p><p>请在5分钟内使用。</p></div>',
     received_at: new Date().toISOString(),
-    is_read: 1,
-    r2_bucket: null,
-    r2_object_key: null
+    is_read: 1
   };
 }

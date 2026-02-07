@@ -21,7 +21,6 @@ export async function handleApiRequest(request, db, mailDomains, options = {
   mockOnly: false,
   resendApiKey: '',
   adminName: '',
-  r2: null,
   authPayload: null,
   mailboxOnly: false
 }) {
