@@ -7,11 +7,24 @@ compatibility_date = "2024-01-01"
 [[d1_databases]]
 binding = "TEMP_MAIL_DB"
 database_name = "maill_free_db" #你的d1数据库名称
-database_id = "c82663ac-62b6-4ba6-be81-cbe297f2a3dd" # 你的database_id
+database_id = "c3a654ea-1a0f-4712-b40c-834c7d7eb4ae" # 你的database_id
 # 登录会话过期时间（单位：天，默认7天）
 # 环境变量
 [vars]
-# FORWARD_RULES="[{"prefix":"vip","email":"a@example.com"},{"prefix":"*","email":"2141083706@qq.com"}]"
+# 邮箱域名，多个用逗号分隔
+MAIL_DOMAIN = "temp.example.com"
+# 严格管理员密码（请修改为强密码）
+ADMIN_PASSWORD = "your_admin_password_here"
+# 严格管理员用户名（默认 admin）
+ADMIN_NAME = "admin"
+# JWT 签名密钥（请修改为随机字符串）
+JWT_TOKEN = "your_jwt_secret_key_here"
+# 会话过期时间（单位：天，默认7天）
+SESSION_EXPIRE_DAYS = "7"
+# 邮件转发规则（可选）
+# FORWARD_RULES = "vip=a@example.com,*=fallback@example.com"
+# Resend 发件密钥（可选，支持多域名配置）
+# RESEND_API_KEY = "re_xxxxxxxxxxxxxxxxxxxxxxxx"
 
 
 # 静态资源目录（Workers + Assets）
