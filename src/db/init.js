@@ -118,7 +118,7 @@ async function migrateMailboxesFields(db) {
 
 /**
  * 迁移 messages 表字段（向后兼容）
- * 检查并添加缺失的字段：eml_content
+ * 检查并添加缺失的字段：verification_code, eml_content
  * @param {object} db - 数据库连接对象
  * @returns {Promise<void>}
  */
@@ -126,6 +126,12 @@ async function migrateMessagesFields(db) {
   try {
     const columns = await db.prepare("PRAGMA table_info(messages)").all();
     const columnNames = (columns.results || []).map(c => c.name);
+    
+    // 添加 verification_code 字段（验证码）
+    if (!columnNames.includes('verification_code')) {
+      await db.exec("ALTER TABLE messages ADD COLUMN verification_code TEXT;");
+      console.log('已添加 messages.verification_code 字段');
+    }
     
     // 添加 eml_content 字段（EML 原始内容）
     if (!columnNames.includes('eml_content')) {

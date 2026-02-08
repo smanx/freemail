@@ -5,7 +5,7 @@
 
 import { extractEmail } from '../utils/common.js';
 import { getOrCreateMailboxId } from '../db/index.js';
-import { parseEmailBody, extractVerificationCode } from './parser.js';
+import { parseEmailBody, extractVerificationCode, stripHtml } from './parser.js';
 
 /**
  * 处理通过 HTTP 接收的邮件
@@ -69,7 +69,7 @@ export async function handleEmailReceive(request, db, env) {
       ].join('\r\n');
     }
 
-    const previewBase = (text || html.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+    const previewBase = (text || stripHtml(html)).replace(/\s+/g, ' ').trim();
     const preview = String(previewBase || '').slice(0, 120);
     let verificationCode = '';
     try {

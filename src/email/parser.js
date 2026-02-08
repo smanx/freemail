@@ -210,7 +210,7 @@ function textToHtml(text) {
   return `<div style="white-space:pre-wrap">${escapeHtml(text)}</div>`;
 }
 
-function stripHtml(html) {
+export function stripHtml(html) {
   const s = String(html || '');
   return s
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
@@ -226,7 +226,7 @@ function stripHtml(html) {
 }
 
 /**
- * 从邮件主题、文本和HTML中智能提取验证码（4-8位数字）
+ * 从邮件主题、文本和HTML中智能提取验证码（4-8位数字或字母+数字混合）
  * @param {object} params - 提取参数对象
  * @param {string} params.subject - 邮件主题
  * @param {string} params.text - 纯文本内容
@@ -252,13 +252,29 @@ export function extractVerificationCode({ subject = '', text = '', html = '' } =
     return '';
   }
 
+  function normalizeMixedCode(s) {
+    // 提取字母+数字混合的验证码（如 U1S-NFL）
+    const cleaned = String(s || '').replace(/[^\p{L}\p{N}\-]/gu, ''); // 只保留字母、数字和连字符
+    if (cleaned.length >= minLen && cleaned.length <= maxLen) {
+      // 检查是否包含至少一个字母和一个数字
+      const hasLetter = /[\p{L}]/u.test(cleaned);
+      const hasDigit = /\d/.test(cleaned);
+      if (hasLetter && hasDigit) {
+        return cleaned;
+      }
+    }
+    return '';
+  }
+
   const kw = '(?:verification|one[-\\s]?time|two[-\\s]?factor|2fa|security|auth|login|confirm|code|otp|验证码|校验码|驗證碼|確認碼|認證碼|認証コード|인증코드|코드)';
   const sepClass = "[\\u00A0\\s\\-–—_.·•∙‧'']";
-  const codeChunk = `([0-9](?:${sepClass}?[0-9]){3,7})`;
+  const digitCodeChunk = `([0-9](?:${sepClass}?[0-9]){3,7})`;
+  const mixedCodeChunk = `([\\p{L}\\p{N}](?:${sepClass}?[\\p{L}\\p{N}]){3,7})`;
 
+  // 优先提取纯数字验证码（主题）
   const subjectOrdereds = [
-    new RegExp(`${kw}[^\n\r\d]{0,20}(?<!\\d)${codeChunk}(?!\\d)`, 'i'),
-    new RegExp(`(?<!\\d)${codeChunk}(?!\\d)[^\n\r\d]{0,20}${kw}`, 'i'),
+    new RegExp(`${kw}[^\n\r\d]{0,20}(?<!\\d)${digitCodeChunk}(?!\\d)`, 'i'),
+    new RegExp(`(?<!\\d)${digitCodeChunk}(?!\\d)[^\n\r\d]{0,20}${kw}`, 'i'),
   ];
   for (const r of subjectOrdereds) {
     const m = sources.subject.match(r);
@@ -268,9 +284,10 @@ export function extractVerificationCode({ subject = '', text = '', html = '' } =
     }
   }
 
+  // 优先提取纯数字验证码（正文）
   const bodyOrdereds = [
-    new RegExp(`${kw}[^\n\r\d]{0,30}(?<!\\d)${codeChunk}(?!\\d)`, 'i'),
-    new RegExp(`(?<!\\d)${codeChunk}(?!\\d)[^\n\r\d]{0,30}${kw}`, 'i'),
+    new RegExp(`${kw}[^\n\r\d]{0,30}(?<!\\d)${digitCodeChunk}(?!\\d)`, 'i'),
+    new RegExp(`(?<!\\d)${digitCodeChunk}(?!\\d)[^\n\r\d]{0,30}${kw}`, 'i'),
   ];
   for (const r of bodyOrdereds) {
     const m = sources.body.match(r);
@@ -280,9 +297,10 @@ export function extractVerificationCode({ subject = '', text = '', html = '' } =
     }
   }
 
+  // 宽松匹配纯数字验证码
   const looseBodyOrdereds = [
-    new RegExp(`${kw}[^\n\r\d]{0,80}(?<!\\d)${codeChunk}(?!\\d)`, 'i'),
-    new RegExp(`(?<!\\d)${codeChunk}(?!\\d)[^\n\r\d]{0,80}${kw}`, 'i'),
+    new RegExp(`${kw}[^\n\r\d]{0,80}(?<!\\d)${digitCodeChunk}(?!\\d)`, 'i'),
+    new RegExp(`(?<!\\d)${digitCodeChunk}(?!\\d)[^\n\r\d]{0,80}${kw}`, 'i'),
   ];
   for (const r of looseBodyOrdereds) {
     const m = sources.body.match(r);
@@ -291,6 +309,31 @@ export function extractVerificationCode({ subject = '', text = '', html = '' } =
       if (n && !isLikelyNonVerificationCode(n, sources.body)) {
         return n;
       }
+    }
+  }
+
+  // 如果没有找到纯数字验证码，尝试提取字母+数字混合验证码
+  const mixedSubjectOrdereds = [
+    new RegExp(`${kw}[^\n\r]{0,20}(?<!\\w)${mixedCodeChunk}(?!\\w)`, 'ui'),
+    new RegExp(`(?<!\\w)${mixedCodeChunk}(?!\\w)[^\n\r]{0,20}${kw}`, 'ui'),
+  ];
+  for (const r of mixedSubjectOrdereds) {
+    const m = sources.subject.match(r);
+    if (m && m[1]) {
+      const n = normalizeMixedCode(m[1]);
+      if (n) return n;
+    }
+  }
+
+  const mixedBodyOrdereds = [
+    new RegExp(`${kw}[^\n\r]{0,30}(?<!\\w)${mixedCodeChunk}(?!\\w)`, 'ui'),
+    new RegExp(`(?<!\\w)${mixedCodeChunk}(?!\\w)[^\n\r]{0,30}${kw}`, 'ui'),
+  ];
+  for (const r of mixedBodyOrdereds) {
+    const m = sources.body.match(r);
+    if (m && m[1]) {
+      const n = normalizeMixedCode(m[1]);
+      if (n) return n;
     }
   }
 
