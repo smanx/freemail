@@ -107,7 +107,7 @@ export function restoreButton(button) {
 
 /**
  * 从文本中提取验证码（优先使用后端提取的 verification_code 字段）
- * 支持纯数字验证码和字母+数字混合验证码（如 U1S-NFL）
+ * 支持纯数字验证码、字母+数字混合验证码（如 U1S-NFL）、纯字母验证码（如 VQF-RRX）
  * @param {string} text - 文本内容
  * @returns {string}
  */
@@ -115,7 +115,6 @@ export function extractCode(text) {
   if (!text) return '';
   const keywords = '(?:验证码|校验码|激活码|one[-\\s]?time\\s+code|verification\\s+code|security\\s+code|two[-\\s]?factor|2fa|otp|login\\s+code|code)';
   const notFollowAlnum = '(?![0-9A-Za-z])';
-  const notFollowWord = '(?![\\w\\-])';
   const minLen = 4;
   const maxLen = 8;
 
@@ -138,11 +137,11 @@ export function extractCode(text) {
 
   // 3) 关键词附近的 4-8 位字母数字混合（支持连字符）
   m = text.match(new RegExp(
-    keywords + "[^0-9A-Za-z]{0,40}([A-Za-z0-9](?:[ \\t\\-]*[A-Za-z0-9]){3,7})" + notFollowWord,
+    keywords + "[^0-9A-Za-z]{0,40}([A-Za-z0-9](?:[ \\t-]*[A-Za-z0-9]){3,7})(?![\\w-])",
     'i'
   ));
   if (m) {
-    const cleaned = m[1].replace(/[^\w\\-]/g, '');
+    const cleaned = m[1].replace(/[^\w-]/g, '');
     // 检查是否包含至少一个字母和一个数字
     const hasLetter = /[A-Za-z]/.test(cleaned);
     const hasDigit = /\d/.test(cleaned);
@@ -163,13 +162,44 @@ export function extractCode(text) {
   }
 
   // 6) 全局字母+数字混合验证码（如 U1S-NFL）
-  m = text.match(/([A-Za-z0-9](?:[ \\t\\-]*[A-Za-z0-9]){3,7})(?![\w\\-])/);
+  m = text.match(/([A-Za-z0-9](?:[ \\t-]*[A-Za-z0-9]){3,7})(?![\w-])/);
   if (m) {
-    const cleaned = m[1].replace(/[^\w\\-]/g, '');
+    const cleaned = m[1].replace(/[^\w-]/g, '');
     const hasLetter = /[A-Za-z]/.test(cleaned);
     const hasDigit = /\d/.test(cleaned);
     if (hasLetter && hasDigit && cleaned.length >= minLen && cleaned.length <= maxLen) {
       return cleaned;
+    }
+  }
+
+  // 7) 全局纯字母验证码（如 VQF-RRX, ABC-DEF）
+  m = text.match(/([A-Z](?:[ \\t-]*[A-Z]){3,7})(?![A-Z-])/);
+  if (m) {
+    const cleaned = m[1].replace(/[^\w-]/g, '');
+    if (cleaned.length >= minLen && cleaned.length <= maxLen) {
+      return cleaned;
+    }
+  }
+
+  // 8) 宽松匹配：任何 4-8 位字母数字混合，至少包含一个数字和字母
+  m = text.match(/[A-Za-z0-9]{4,8}/g);
+  if (m) {
+    for (const match of m) {
+      const hasLetter = /[A-Za-z]/.test(match);
+      const hasDigit = /\d/.test(match);
+      if (hasLetter && hasDigit) {
+        return match;
+      }
+    }
+  }
+
+  // 9) 宽松匹配：任何 4-8 位纯字母
+  m = text.match(/[A-Z]{4,8}/g);
+  if (m) {
+    for (const match of m) {
+      if (match.length >= minLen && match.length <= maxLen) {
+        return match;
+      }
     }
   }
 
