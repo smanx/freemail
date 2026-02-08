@@ -106,7 +106,8 @@ export function restoreButton(button) {
 }
 
 /**
- * 从文本中提取验证码
+ * 从文本中提取验证码（优先使用后端提取的 verification_code 字段）
+ * 支持纯数字验证码和字母+数字混合验证码（如 U1S-NFL）
  * @param {string} text - 文本内容
  * @returns {string}
  */
@@ -114,6 +115,9 @@ export function extractCode(text) {
   if (!text) return '';
   const keywords = '(?:验证码|校验码|激活码|one[-\\s]?time\\s+code|verification\\s+code|security\\s+code|two[-\\s]?factor|2fa|otp|login\\s+code|code)';
   const notFollowAlnum = '(?![0-9A-Za-z])';
+  const notFollowWord = '(?![\\w\\-])';
+  const minLen = 4;
+  const maxLen = 8;
 
   // 1) 关键词附近的 4-8 位纯数字
   let m = text.match(new RegExp(
@@ -129,15 +133,23 @@ export function extractCode(text) {
   ));
   if (m) {
     const digits = m[1].replace(/\D/g, '');
-    if (digits.length >= 4 && digits.length <= 8) return digits;
+    if (digits.length >= minLen && digits.length <= maxLen) return digits;
   }
 
-  // 3) 关键词附近的 4-8 位字母数字混合
+  // 3) 关键词附近的 4-8 位字母数字混合（支持连字符）
   m = text.match(new RegExp(
-    keywords + "[^0-9A-Za-z]{0,40}((?=[0-9A-Za-z]*\\d)[0-9A-Za-z]{4,8})" + notFollowAlnum,
+    keywords + "[^0-9A-Za-z]{0,40}([A-Za-z0-9](?:[ \\t\\-]*[A-Za-z0-9]){3,7})" + notFollowWord,
     'i'
   ));
-  if (m) return m[1];
+  if (m) {
+    const cleaned = m[1].replace(/[^\w\\-]/g, '');
+    // 检查是否包含至少一个字母和一个数字
+    const hasLetter = /[A-Za-z]/.test(cleaned);
+    const hasDigit = /\d/.test(cleaned);
+    if (hasLetter && hasDigit && cleaned.length >= minLen && cleaned.length <= maxLen) {
+      return cleaned;
+    }
+  }
 
   // 4) 全局 6 位数字
   m = text.match(/(?<!\d)(\d{6})(?!\d)/);
@@ -147,7 +159,18 @@ export function extractCode(text) {
   m = text.match(/(\d(?:[ \t-]\d){5,7})/);
   if (m) {
     const digits = m[1].replace(/\D/g, '');
-    if (digits.length >= 4 && digits.length <= 8) return digits;
+    if (digits.length >= minLen && digits.length <= maxLen) return digits;
+  }
+
+  // 6) 全局字母+数字混合验证码（如 U1S-NFL）
+  m = text.match(/([A-Za-z0-9](?:[ \\t\\-]*[A-Za-z0-9]){3,7})(?![\w\\-])/);
+  if (m) {
+    const cleaned = m[1].replace(/[^\w\\-]/g, '');
+    const hasLetter = /[A-Za-z]/.test(cleaned);
+    const hasDigit = /\d/.test(cleaned);
+    if (hasLetter && hasDigit && cleaned.length >= minLen && cleaned.length <= maxLen) {
+      return cleaned;
+    }
   }
 
   return '';
