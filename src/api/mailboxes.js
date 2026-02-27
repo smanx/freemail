@@ -281,10 +281,16 @@ export async function handleMailboxesApi(request, db, mailDomains, url, path, op
       const favoriteParam = url.searchParams.get('favorite');
       const forwardParam = url.searchParams.get('forward');
       
-      // 搜索过滤（模糊匹配邮箱地址）
+      // 搜索过滤（匹配邮箱地址或邮件内容）
       if (searchParam && searchParam.trim()) {
-        whereConditions.push('m.address LIKE ?');
-        bindParams.push(`%${searchParam.trim().toLowerCase()}%`);
+        const searchTerm = `%${searchParam.trim().toLowerCase()}%`;
+        // 搜索邮箱地址，或搜索该邮箱下邮件的 sender/subject/preview/eml_content
+        whereConditions.push(`(m.address LIKE ? OR EXISTS (
+          SELECT 1 FROM messages msg 
+          WHERE msg.mailbox_id = m.id 
+          AND (msg.sender LIKE ? OR msg.subject LIKE ? OR msg.preview LIKE ? OR msg.eml_content LIKE ?)
+        ))`);
+        bindParams.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
       }
       
       if (domainParam) {
