@@ -55,6 +55,55 @@
       </div>
     </div>
     <div id="demo-banner" class="demo-banner" style="display:none">当前为演示管理页：所有改动仅在浏览器会话中模拟</div>
+    
+    <!-- 全局搜索区域 -->
+    <div class="card search-card">
+      <h2><span class="card-icon">🔍</span><span>全局邮件搜索</span></h2>
+      <div class="search-form">
+        <div class="search-input-group">
+          <input type="text" id="search-input" class="input" placeholder="输入关键词搜索邮件..." />
+          <button id="search-btn" class="btn btn-primary">搜索</button>
+        </div>
+        <div class="search-options">
+          <input type="text" id="search-mailbox" class="input" placeholder="可选：限定邮箱地址" />
+        </div>
+      </div>
+      <div id="search-loading" class="loading-indicator" style="display:none">
+        <div class="spinner"></div>
+        <span>搜索中...</span>
+      </div>
+      <div id="search-results">
+        <div class="search-results-header">
+          <span id="search-count"></span>
+        </div>
+        <div class="table-container">
+          <table class="table">
+            <thead>
+              <tr>
+                <th class="col-id">ID</th>
+                <th class="col-mailbox">邮箱</th>
+                <th class="col-sender">发件人</th>
+                <th class="col-subject">主题</th>
+                <th class="col-received">收件时间</th>
+                <th class="col-actions">操作</th>
+              </tr>
+            </thead>
+            <tbody id="search-tbody"></tbody>
+          </table>
+        </div>
+        <div class="pagination-container" id="search-pagination" style="display:none">
+          <div class="pagination-info">
+            <span id="search-pagination-text"></span>
+          </div>
+          <div class="pagination-controls">
+            <button id="search-prev" class="btn btn-ghost btn-sm" disabled>上一页</button>
+            <span id="search-page-info">1 / 1</span>
+            <button id="search-next" class="btn btn-ghost btn-sm" disabled>下一页</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
     <div class="admin-container">
       <div class="admin-left">
         <div class="card">

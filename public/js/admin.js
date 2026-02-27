@@ -15,11 +15,30 @@ let currentPage = 1, pageSize = 20, totalUsers = 0;
 let currentViewingUser = null;
 let mailboxPage = 1, mailboxPageSize = 20, totalMailboxes = 0;
 
+// 搜索状态
+let searchPage = 1, searchPageSize = 20, searchTotal = 0;
+let currentSearchQuery = '';
+
 // DOM 元素
 const els = {
   back: document.getElementById('back'),
   logout: document.getElementById('logout'),
   demoBanner: document.getElementById('demo-banner'),
+  
+  // 搜索相关
+  searchInput: document.getElementById('search-input'),
+  searchMailbox: document.getElementById('search-mailbox'),
+  searchBtn: document.getElementById('search-btn'),
+  searchLoading: document.getElementById('search-loading'),
+  searchResults: document.getElementById('search-results'),
+  searchCount: document.getElementById('search-count'),
+  searchTbody: document.getElementById('search-tbody'),
+  searchPagination: document.getElementById('search-pagination'),
+  searchPaginationText: document.getElementById('search-pagination-text'),
+  searchPrev: document.getElementById('search-prev'),
+  searchNext: document.getElementById('search-next'),
+  searchPageInfo: document.getElementById('search-page-info'),
+  
   usersTbody: document.getElementById('users-tbody'),
   usersRefresh: document.getElementById('users-refresh'),
   usersLoading: document.getElementById('users-loading'),
@@ -473,6 +492,131 @@ els.editDelete?.addEventListener('click', async () => {
 // 邮箱分页
 els.mailboxesPrevPage?.addEventListener('click', () => { if (mailboxPage > 1) { mailboxPage--; loadUserMailboxes(); }});
 els.mailboxesNextPage?.addEventListener('click', () => { const totalPages = Math.ceil(totalMailboxes / mailboxPageSize); if (mailboxPage < totalPages) { mailboxPage++; loadUserMailboxes(); }});
+
+// 搜索功能
+async function searchEmails(query, mailbox = '', page = 1) {
+  if (!query || !query.trim()) {
+    showToast('请输入搜索关键词', 'warning');
+    return;
+  }
+  
+  if (els.searchLoading) els.searchLoading.style.display = 'flex';
+  if (els.searchTbody) els.searchTbody.innerHTML = '';
+  
+  try {
+    const params = new URLSearchParams({
+      q: query.trim(),
+      page: page,
+      size: searchPageSize
+    });
+    if (mailbox && mailbox.trim()) {
+      params.set('mailbox', mailbox.trim().toLowerCase());
+    }
+    
+    const res = await fetch('/api/admin/emails/search?' + params.toString());
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || '搜索失败');
+    }
+    
+    const data = await res.json();
+    searchTotal = data.total || 0;
+    searchPage = data.page || 1;
+    currentSearchQuery = query.trim();
+    
+    renderSearchResults(data.list || []);
+    updateSearchPagination();
+    
+    if (els.searchResults) els.searchResults.style.display = 'block';
+    if (els.searchCount) {
+      els.searchCount.textContent = searchTotal > 0 
+        ? `找到 ${searchTotal} 封邮件` 
+        : '未找到匹配的邮件';
+    }
+  } catch(e) {
+    console.error('搜索失败:', e);
+    showToast('搜索失败: ' + e.message, 'error');
+  } finally {
+    if (els.searchLoading) els.searchLoading.style.display = 'none';
+  }
+}
+
+function renderSearchResults(list) {
+  if (!els.searchTbody) return;
+  
+  if (!list || list.length === 0) {
+    els.searchTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px">暂无搜索结果</td></tr>';
+    return;
+  }
+  
+  els.searchTbody.innerHTML = list.map(item => {
+    const receivedDate = item.received_at ? new Date(item.received_at).toLocaleString('zh-CN') : '-';
+    const preview = item.preview ? (item.preview.length > 60 ? item.preview.substring(0, 60) + '...' : item.preview) : '-';
+    return `
+      <tr>
+        <td>${item.id}</td>
+        <td><span class="mailbox-tag">${item.mailbox_address || '-'}</span></td>
+        <td>${escapeHtml(item.sender || '-')}</td>
+        <td>
+          <div class="subject-cell" title="${escapeHtml(item.subject || '')}">
+            ${item.is_read ? '' : '<span class="unread-dot"></span>'}
+            ${escapeHtml(item.subject || '(无主题)')}
+          </div>
+          <div class="preview-cell">${escapeHtml(preview)}</div>
+        </td>
+        <td>${receivedDate}</td>
+        <td>
+          <a href="/html/mailbox.html?mailbox=${encodeURIComponent(item.mailbox_address)}" class="btn btn-sm btn-ghost" target="_blank">查看邮箱</a>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function updateSearchPagination() {
+  const totalPages = Math.max(1, Math.ceil(searchTotal / searchPageSize));
+  if (els.searchPageInfo) els.searchPageInfo.textContent = `${searchPage} / ${totalPages}`;
+  if (els.searchPrev) els.searchPrev.disabled = searchPage <= 1;
+  if (els.searchNext) els.searchNext.disabled = searchPage >= totalPages;
+  if (els.searchPagination) els.searchPagination.style.display = searchTotal > 0 ? 'flex' : 'none';
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// 绑定搜索事件
+els.searchBtn?.addEventListener('click', () => {
+  const query = els.searchInput?.value || '';
+  const mailbox = els.searchMailbox?.value || '';
+  searchPage = 1;
+  searchEmails(query, mailbox, 1);
+});
+
+els.searchInput?.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    const query = els.searchInput.value || '';
+    const mailbox = els.searchMailbox?.value || '';
+    searchPage = 1;
+    searchEmails(query, mailbox, 1);
+  }
+});
+
+els.searchPrev?.addEventListener('click', () => {
+  if (searchPage > 1) {
+    searchPage--;
+    searchEmails(currentSearchQuery, els.searchMailbox?.value || '', searchPage);
+  }
+});
+
+els.searchNext?.addEventListener('click', () => {
+  const totalPages = Math.ceil(searchTotal / searchPageSize);
+  if (searchPage < totalPages) {
+    searchPage++;
+    searchEmails(currentSearchQuery, els.searchMailbox?.value || '', searchPage);
+  }
+});
 
 // 初始化
 loadUsers();
