@@ -12,13 +12,13 @@ database_id = "c3a654ea-1a0f-4712-b40c-834c7d7eb4ae" # 你的database_id
 # 环境变量
 [vars]
 # 邮箱域名，多个用逗号分隔
-MAIL_DOMAIN = "smanx.dpdns.org,hidns.hidns.vip,smanx.de5.net"
+MAIL_DOMAIN = "smanx.dpdns.org"
 # 严格管理员密码（请修改为强密码）
-ADMIN_PASSWORD = "zc123456"
+ADMIN_PASSWORD = ""
 # 严格管理员用户名（默认 admin）
 ADMIN_NAME = "admin"
 # JWT 签名密钥（请修改为随机字符串）
-JWT_TOKEN = "auto"
+JWT_TOKEN = ""
 # 会话过期时间（单位：天，默认7天）
 SESSION_EXPIRE_DAYS = "7"
 # 邮件转发规则（可选）
